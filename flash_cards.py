@@ -8,7 +8,7 @@ app.config.from_object(__name__)
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'db', 'cards.db'),
+    DATABASE=os.path.join(app.root_path, 'db', 'cards-jwasham.db'),
     SECRET_KEY='development key',
     USERNAME='admin',
     PASSWORD='default'
@@ -49,8 +49,8 @@ def close_db(error):
 
 # Uncomment and use this to initialize database, then comment it
 #   You can rerun it to pave the database and start over
-# @app.route('/initdb')
-# def initdb():
+#@app.route('/initdb')
+#def initdb():
 #     init_db()
 #     return 'Initialized the database.'
 
@@ -87,6 +87,8 @@ def filter_cards(filter_name):
         "all":      "where 1 = 1",
         "general":  "where type = 1",
         "code":     "where type = 2",
+        "management":     "where type = 3",
+        "latest":     "where type = 4",
         "known":    "where known = 1",
         "unknown":  "where known = 0",
     }
@@ -137,23 +139,18 @@ def edit(card_id):
 def edit_card():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-    selected = request.form.getlist('known')
-    known = bool(selected)
+    known = True
     db = get_db()
     command = '''
         UPDATE cards
         SET
-          type = ?,
           front = ?,
-          back = ?,
-          known = ?
+          back = ?
         WHERE id = ?
     '''
-    db.execute(command,
-               [request.form['type'],
+    db.execute(command,[
                 request.form['front'],
                 request.form['back'],
-                known,
                 request.form['card_id']
                 ])
     db.commit()
@@ -187,12 +184,29 @@ def code(card_id=None):
         return redirect(url_for('login'))
     return memorize("code", card_id)
 
+@app.route('/management')
+@app.route('/management/<card_id>')
+def management(card_id=None):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return memorize("management", card_id)
+
+@app.route('/latest')
+@app.route('/latest/<card_id>')
+def latest(card_id=None):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return memorize("latest", card_id)
 
 def memorize(card_type, card_id):
     if card_type == "general":
         type = 1
     elif card_type == "code":
         type = 2
+    elif card_type == "management":
+        type = 3
+    elif card_type == "latest":
+        type = 4
     else:
         return redirect(url_for('cards'))
 
